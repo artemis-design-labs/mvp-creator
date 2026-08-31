@@ -353,8 +353,8 @@ export default function App() {
 
   // All categories across all projects, sorted
   const allCategories = useMemo(() => {
-    const set = new Set();
-    projects.forEach(p => (p.categories || []).forEach(c => set.add(c)));
+    const set = new Set<string>();
+    projects.forEach(p => (p.categories || []).forEach((c: string) => set.add(c)));
     return Array.from(set).sort();
   }, [projects]);
 
@@ -1658,11 +1658,11 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
     newProject.tags = mdParsed.tags || [];
     newProject.status = 'draft';
     newProject.hypothesis = {
-      customer: mdParsed.hypothesis?.customer || '',
       problem: mdParsed.hypothesis?.problem || '',
+      segments: mdParsed.hypothesis?.segments || [],
       solution: mdParsed.hypothesis?.solution || '',
       hook: mdParsed.hypothesis?.hook || '',
-      antiCustomer: mdParsed.hypothesis?.antiCustomer || ''
+      antiCustomer: mdParsed.hypothesis?.antiCustomer || mdParsed.hypothesis?.customer || ''
     };
     newProject.advantage = {
       capability: mdParsed.advantage?.capability || '',
