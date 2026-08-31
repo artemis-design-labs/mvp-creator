@@ -1,0 +1,31 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="MVP Creator/Introduction" />
+
+# MVP Creator — Component Library
+
+These are the reusable UI components extracted from MVP Creator. Each component is independently testable, documented with controls, and importable from `./components`.
+
+## Components
+
+| Component | Used in | Description |
+|---|---|---|
+| **TextAreaField** | Hypothesis, Advantage, Click Test, Persona, Figma | Labelled textarea with optional helper text |
+| **ArrayEditor** | Principles, Blueprint, Competitors, Empathy Map | Editable list of strings — type + Enter or Add |
+| **PersonaBulletList** | Persona (Goals, Frustrations, Motivations, Behaviors) | Purple-accented bullet list |
+| **PersonaPillList** | Persona (Tools, Personality) | Pill/tag list for short categorical items |
+| **JourneyStageCard** | Journey Map | A single journey stage with steps, pain points, and opportunities |
+
+## Constants
+
+Shared configuration lives in `components/constants.ts`:
+- `EMOTIONS` — 7 emotion states with color codes (used in Journey Map)
+- `FLOW_STEP_TYPES` — 4 user flow node types with colors
+- `FLOW_SYSTEM_STATES` — valid system state values
+
+## Usage
+
+```tsx
+import { TextAreaField, ArrayEditor, PersonaBulletList } from './components';
+import { EMOTIONS } from './components/constants';
+```
