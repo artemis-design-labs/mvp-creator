@@ -1,15 +1,38 @@
 import { kv } from '@vercel/kv';
 import { randomUUID } from 'crypto';
 
-const DATA_KEY = 'mvp:data';
+const INDEX_KEY = 'mvp:index'; // { projectIds: string[], selectedId: string|null }
+
+export async function getIndex() {
+  return (await kv.get(INDEX_KEY)) ?? { projectIds: [], selectedId: null };
+}
+
+export async function setIndex(index) {
+  await kv.set(INDEX_KEY, index);
+}
+
+export async function getProject(id) {
+  return kv.get(`mvp:project:${id}`);
+}
+
+export async function setProject(project) {
+  await kv.set(`mvp:project:${project.id}`, project);
+}
+
+export async function deleteProject(id) {
+  await kv.del(`mvp:project:${id}`);
+}
 
 export async function getData() {
-  const data = await kv.get(DATA_KEY);
-  return data ?? { projects: [], selectedId: null };
+  const index = await getIndex();
+  const projects = (await Promise.all(index.projectIds.map(id => getProject(id)))).filter(Boolean);
+  return { projects, selectedId: index.selectedId };
 }
 
 export async function setData(data) {
-  await kv.set(DATA_KEY, data);
+  const { projects, selectedId } = data;
+  await Promise.all(projects.map(p => setProject(p)));
+  await setIndex({ projectIds: projects.map(p => p.id), selectedId: selectedId ?? null });
 }
 
 export function blankProject(overrides = {}) {

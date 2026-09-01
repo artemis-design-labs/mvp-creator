@@ -1,22 +1,19 @@
-import { getData, setData } from '../_lib.js';
+import { getIndex, setIndex, getProject, setProject, deleteProject } from '../_lib.js';
 
 export default async function handler(req, res) {
   const { id } = req.query;
-  const data = await getData();
 
   if (req.method === 'GET') {
-    const project = data.projects.find(p => p.id === id);
+    const project = await getProject(id);
     if (!project) return res.status(404).json({ error: 'Not found' });
     return res.json(project);
   }
 
   if (req.method === 'PUT') {
-    const idx = data.projects.findIndex(p => p.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    const existing = await getProject(id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
 
-    const existing = data.projects[idx];
     const updates = req.body;
-
     const merged = {
       ...existing,
       ...updates,
@@ -86,19 +83,21 @@ export default async function handler(req, res) {
       },
     };
 
-    data.projects[idx] = merged;
-    await setData(data);
+    await setProject(merged);
     return res.json(merged);
   }
 
   if (req.method === 'DELETE') {
-    const idx = data.projects.findIndex(p => p.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Not found' });
-    data.projects.splice(idx, 1);
-    if (data.selectedId === id) {
-      data.selectedId = data.projects[0]?.id || null;
+    const existing = await getProject(id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+
+    await deleteProject(id);
+    const index = await getIndex();
+    index.projectIds = index.projectIds.filter(pid => pid !== id);
+    if (index.selectedId === id) {
+      index.selectedId = index.projectIds[0] ?? null;
     }
-    await setData(data);
+    await setIndex(index);
     return res.json({ ok: true });
   }
 
