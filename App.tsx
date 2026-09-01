@@ -1292,7 +1292,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
   "name": "Short Project Name (3-5 words)",
   "tags": ["tag1", "tag2", "tag3"],
   "hypothesis": {
-    "problem": "The universal problem affecting all target segments — one sentence capturing the root pain",
+    "problem": "Jake Knapp 3-part formula: [Target User] + [Root Bottleneck] → [Quantifiable Consequence]. Rules: use roles not names, compress friction into one structural defect, make consequences explicit and measurable (e.g. overselling, data leaks, revenue blindness). Aim for ~200 chars — specific enough for a sprint brief.",
     "segments": [
       {
         "name": "Segment name (e.g. 'Freelance Designer')",
@@ -1989,7 +1989,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
               <>
                 <TextAreaField
                   label="Universal Problem"
-                  helperText="The one root pain that affects every segment — write it in a way that's true regardless of who's reading it."
+                  helperText="Jake Knapp's Click Framework: [Target User] + [Root Bottleneck] → [Quantifiable Consequence]. Use roles, not names. Compress scattered friction into one structural defect. Make consequences explicit and measurable. Ultra-tight (~140 chars) for pitches; Balanced (~200 chars) for decks; Action-oriented (~260 chars) for sprint briefs and PRDs."
                   value={selectedProject.hypothesis?.problem}
                   onChange={v => updateNested('hypothesis', 'problem', v)}
                 />
