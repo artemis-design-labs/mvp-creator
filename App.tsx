@@ -1293,19 +1293,40 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
   "name": "Short Project Name (3-5 words)",
   "tags": ["tag1", "tag2", "tag3"],
   "hypothesis": {
-    "problem": "Jake Knapp 3-part formula: [Target User] + [Root Bottleneck] → [Quantifiable Consequence]. Rules: use roles not names, compress friction into one structural defect, make consequences explicit and measurable (e.g. overselling, data leaks, revenue blindness). Aim for ~200 chars — specific enough for a sprint brief.",
+    "problem": "Write all three tiers separated by labels. Card (~140 chars): [Target Enterprise Role] + [Root Bottleneck] → [Quantifiable Consequence] using job function, one structural defect, measurable business metric. Executive Pitch (~200 chars): expand consequence with cycle time/FTE burn/compliance risk. Architecture Prompt (~260+ chars): dense — system interfaces, failure mechanics, data degradation.",
     "segments": [
       {
-        "name": "Segment name (e.g. 'Freelance Designer')",
+        "name": "Economic Buyer — [Title]",
+        "type": "secondary",
+        "description": "Budget holder and contract signatory. Include org tier, team size, and what justifies their licensing decision.",
+        "painPoint": "Quantified cost, visibility gap, or compliance risk at the budget level.",
+        "resolution": "Aggregate ROI dashboard, exportable audit summaries, and licensing cost justification."
+      },
+      {
+        "name": "Primary Operator — [Title]",
         "type": "primary",
-        "description": "Who they are — role, context, scale",
-        "painPoint": "How the universal problem manifests in their specific scenario",
-        "resolution": "How the universal solution directly fixes their specific pain"
+        "description": "Daily end user executing operational volume. Include workflow cadence, volume, and where cognitive fatigue peaks.",
+        "painPoint": "Specific manual step, system gap, or context-switch that degrades throughput. Quantify where possible.",
+        "resolution": "Primary task workspace — high-speed execution, bulk processing, or single-record deep dive. Name the exact interaction."
+      },
+      {
+        "name": "Reviewer / Auditor — [Title]",
+        "type": "secondary",
+        "description": "Risk, compliance, or management oversight. Include what they approve or escalate.",
+        "painPoint": "What they cannot see, catch, or sign off on with current tooling.",
+        "resolution": "Exception queue, confidence score filter, discrepancy resolution workflow, or final sign-off screen."
+      },
+      {
+        "name": "Systems of Record",
+        "type": "secondary",
+        "description": "Integration Context. List the exact legacy platforms being read from or written to, and the data transfer mechanism (read-only REST API, flat CSV, batch webhook).",
+        "painPoint": "Schema incompatibilities, latency, or data loss between the systems.",
+        "resolution": "Mock schema-compliant payloads representing each legacy source. No live API connectors in the prototype."
       }
     ],
-    "solution": "The universal solution — the specific offering or transformation that addresses the problem",
-    "hook": "One-liner: why they will care NOW",
-    "antiCustomer": "Who this is explicitly NOT for"
+    "solution": "Structure as three parts. (1) Interface Archetype: choose HITL Exception Queue, Embedded Contextual Copilot, or Autonomous Reconciliation & Diff Engine — describe exactly how it works. (2) Core Working Artifact: the tangible output produced in the first 60 seconds of demo interaction. (3) Operational Cadence: Real-Time Synchronous or Batch Asynchronous with detail.",
+    "hook": "Two parts. Friction-to-Value Shift: the dramatic before/after shown on screen in the first demo — be specific about what happens and how fast. Visual Proof Point: the exact UI element that makes AI trust visible (dual-pane view, confidence badge, diff highlight, citation bounding box).",
+    "antiCustomer": "Two parts. (1) Anti-Customer Profiles: excluded market tiers or org sizes with explicit reason (lacks data density, no legacy silos, misaligned incentives). (2) Prototype Technical Non-Goals: stub SSO role-switcher not custom auth; mock schema payloads not live connectors; polling stubs not WebSockets; fixed KPI cards not custom analytics builders."
   },
   "advantage": {
     "capability": "What tech, assets, or skills make this possible",
@@ -1991,7 +2012,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
               <>
                 <TextAreaField
                   label="Universal Problem"
-                  helperText="Jake Knapp's Click Framework: [Target User] + [Root Bottleneck] → [Quantifiable Consequence]. Use roles, not names. Compress scattered friction into one structural defect. Make consequences explicit and measurable. Ultra-tight (~140 chars) for pitches; Balanced (~200 chars) for decks; Action-oriented (~260 chars) for sprint briefs and PRDs."
+                  helperText="[Target Enterprise Role] + [Root Bottleneck / System Defect] → [Quantifiable Consequence]. Use job function and org tier — never generic tags or names. Compress all friction into one structural defect. Quantify consequences in cycle time, FTE burn, or compliance risk. Write all three tiers: Card (~140 chars), Executive Pitch (~200 chars), Architecture Prompt (~260+ chars)."
                   value={selectedProject.hypothesis?.problem}
                   onChange={v => updateNested('hypothesis', 'problem', v)}
                 />
@@ -2001,7 +2022,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>Customer Segments</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>Break the universal problem into each segment's specific scenario — then show how the solution resolves it for them.</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>Define the multi-actor role hierarchy. Primary = daily operator. Secondary = economic buyer, reviewer/auditor, or systems of record. Each segment needs explicit workflow bottleneck, dashboard requirement, and resolution tied to their specific role.</div>
                     </div>
                     <button
                       onClick={() => {
@@ -2063,7 +2084,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                             <textarea
                               value={seg.description}
                               onChange={e => updateSeg('description', e.target.value)}
-                              placeholder="Role, context, scale — be specific."
+                              placeholder="Job title, org tier, and context. For Economic Buyer: budget authority. For Primary Operator: daily volume and workflow. For Reviewer: oversight scope. For Systems of Record: platform name and data transfer mechanism."
                               rows={3}
                               style={{ width: '100%', fontSize: 13, border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px', resize: 'vertical', outline: 'none', fontFamily: 'inherit', color: '#0f172a', boxSizing: 'border-box' }}
                             />
@@ -2073,7 +2094,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                             <textarea
                               value={seg.painPoint}
                               onChange={e => updateSeg('painPoint', e.target.value)}
-                              placeholder="How does the universal problem show up in their world?"
+                              placeholder="Where does manual labor, cognitive fatigue, or system failure occur for this specific role? Quantify where possible (hours/week, error rate, cost per transaction)."
                               rows={3}
                               style={{ width: '100%', fontSize: 13, border: '1px solid #fecaca', borderRadius: 6, padding: '8px 10px', resize: 'vertical', outline: 'none', fontFamily: 'inherit', color: '#0f172a', boxSizing: 'border-box' }}
                             />
@@ -2083,7 +2104,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                             <textarea
                               value={seg.resolution}
                               onChange={e => updateSeg('resolution', e.target.value)}
-                              placeholder="How does the universal solution specifically fix their pain?"
+                              placeholder="Specific interface, workflow, or output this role gets. For Economic Buyer: ROI dashboard. For Primary Operator: task workspace. For Reviewer: exception queue. For Systems of Record: mock schema stub."
                               rows={3}
                               style={{ width: '100%', fontSize: 13, border: '1px solid #a7f3d0', borderRadius: 6, padding: '8px 10px', resize: 'vertical', outline: 'none', fontFamily: 'inherit', color: '#0f172a', boxSizing: 'border-box' }}
                             />
@@ -2096,20 +2117,20 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
 
                 <TextAreaField
                   label="Universal Solution"
-                  helperText="What is the single offering or transformation that resolves the universal problem for all segments?"
+                  helperText="Specify: (1) Interface Archetype — HITL Exception Queue, Embedded Contextual Copilot, or Autonomous Diff Engine. (2) Core Working Artifact — the tangible output produced in the first 60 seconds. (3) Operational Cadence — Real-Time Synchronous or Batch Asynchronous."
                   value={selectedProject.hypothesis?.solution}
                   onChange={v => updateNested('hypothesis', 'solution', v)}
                 />
                 <TextAreaField
                   label="The Hook (One-Liner)"
-                  helperText="Why will they care NOW? What is the urgent benefit?"
+                  helperText="Two parts: (1) Friction-to-Value Shift — the dramatic before/after shown on screen in the first demo interaction. (2) Visual Proof Point — the specific UI element that demonstrates AI trust (e.g. dual-pane split view, confidence badge, automated diff highlight)."
                   value={selectedProject.hypothesis?.hook}
                   onChange={v => updateNested('hypothesis', 'hook', v)}
                   rows={2}
                 />
                 <TextAreaField
                   label="The Anti-Customer"
-                  helperText="Who are we explicitly NOT serving?"
+                  helperText="Two parts: (1) Anti-Customer Profiles — market tiers or org sizes excluded, with reason (lack of data density, no legacy silos, misaligned incentives). (2) Prototype Technical Non-Goals — stub SSO not custom auth, mock payloads not live API connectors, polling stubs not WebSockets, fixed KPI cards not custom analytics builders."
                   value={selectedProject.hypothesis?.antiCustomer}
                   onChange={v => updateNested('hypothesis', 'antiCustomer', v)}
                   rows={2}
