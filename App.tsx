@@ -242,6 +242,7 @@ ${(p.principles || []).map(x => `- ${x}`).join('\n')}
 const createSegment = () => ({
   id: uuid(),
   name: '',
+  type: 'primary' as 'primary' | 'secondary',
   description: '',
   painPoint: '',
   resolution: '',
@@ -1296,6 +1297,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
     "segments": [
       {
         "name": "Segment name (e.g. 'Freelance Designer')",
+        "type": "primary",
         "description": "Who they are — role, context, scale",
         "painPoint": "How the universal problem manifests in their specific scenario",
         "resolution": "How the universal solution directly fixes their specific pain"
@@ -2039,6 +2041,20 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                             placeholder="Segment name (e.g. 'Freelance Designer')"
                             style={{ flex: 1, fontSize: 13, fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', color: '#0f172a' }}
                           />
+                          <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: 6, padding: 2, gap: 2, flexShrink: 0 }}>
+                            {(['primary', 'secondary'] as const).map(t => (
+                              <button
+                                key={t}
+                                onClick={() => updateSeg('type', t)}
+                                style={{
+                                  padding: '3px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                                  background: (seg.type || 'primary') === t ? (t === 'primary' ? '#0f172a' : '#64748b') : 'transparent',
+                                  color: (seg.type || 'primary') === t ? 'white' : '#64748b',
+                                  transition: 'all 0.15s',
+                                }}
+                              >{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+                            ))}
+                          </div>
                           <button onClick={removeSeg} style={{ padding: '3px 10px', background: '#fee2e2', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, color: '#dc2626' }}>Remove</button>
                         </div>
                         <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
