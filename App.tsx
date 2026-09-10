@@ -207,36 +207,288 @@ const setNestedValue = (obj, path, value) => {
   return n;
 };
 
+// --- MARKDOWN EXPORT ---
+// One renderer per section. The global export composes these, so there is a
+// single source of truth and per-section output can never drift from the whole.
+
+const mdList = (arr, bullet = '-') =>
+  (arr || []).filter(Boolean).map(x => `${bullet} ${x}`).join('\n');
+
+const mdField = (label, value) => (value ? `**${label}:** ${value}\n` : '');
+
+const mdBlock = (label, arr) =>
+  (arr || []).length ? `**${label}:**\n${mdList(arr)}\n` : '';
+
+const pct = (n) => (typeof n === 'number' ? `${Math.round(n * 100)}%` : '—');
+
+const SECTION_MD = {
+  hypothesis: (p) => {
+    const h = p.hypothesis || {};
+    const segments = (h.segments || []).map((s, i) =>
+      `### Segment ${i + 1}: ${s.name || 'Untitled'}${s.type ? ` _(${s.type})_` : ''}\n` +
+      mdField('Who', s.description) + mdField('Pain Point', s.painPoint) + mdField('Resolution', s.resolution)
+    ).join('\n');
+    if (!h.problem && !segments && !h.solution && !h.hook && !h.antiCustomer) return '';
+    return mdField('Universal Problem', h.problem) +
+      (segments ? `\n${segments}\n` : '') +
+      mdField('Universal Solution', h.solution) +
+      mdField('Hook', h.hook) +
+      mdField('Anti-Customer', h.antiCustomer);
+  },
+
+  advantage: (p) => {
+    const a = p.advantage || {};
+    if (!a.capability && !a.motivation && !a.insight) return '';
+    return mdField('Capability (Can we?)', a.capability) +
+      mdField('Motivation (Do we care?)', a.motivation) +
+      mdField('Insight (What do we know?)', a.insight);
+  },
+
+  principles: (p) => mdList(p.principles),
+
+  clickTest: (p) => {
+    const c = p.clickTest || {};
+    if (!c.riskiestAssumption && !c.testMethod && !c.successMetric) return '';
+    return mdField('Riskiest Assumption', c.riskiestAssumption) +
+      mdField('Test Method', c.testMethod) +
+      mdField('Success Metric', c.successMetric);
+  },
+
+  blueprint: (p) => {
+    const b = p.blueprint || {};
+    if (!(b.milestones || []).length && !(b.blockers || []).length && !b.timelineNotes) return '';
+    return mdBlock('Milestones', b.milestones) +
+      mdBlock('Blockers', b.blockers) +
+      mdField('Timeline Notes', b.timelineNotes);
+  },
+
+  journey: (p) => {
+    const j = p.journey || {};
+    const stages = (j.stages || []).map((s, i) =>
+      `### Stage ${i + 1}: ${s.name || 'Untitled'}\n` +
+      mdField('Emotion', s.emotion) +
+      mdBlock('Steps', s.steps) +
+      mdBlock('Pain Points', s.painPoints) +
+      mdBlock('Opportunities', s.opportunities)
+    ).join('\n');
+    if (!j.persona && !j.goal && !stages) return '';
+    return mdField('Persona', j.persona) + mdField('Goal', j.goal) + (stages ? `\n${stages}` : '');
+  },
+
+  empathyMap: (p) => {
+    const e = p.empathyMap || {};
+    const keys = [['Says', e.says], ['Thinks', e.thinks], ['Does', e.does], ['Feels', e.feels], ['Pains', e.pains], ['Gains', e.gains]];
+    if (!keys.some(([, v]) => (v || []).length)) return '';
+    return keys.map(([label, v]) => ((v || []).length ? `### ${label}\n${mdList(v)}\n` : '')).join('\n');
+  },
+
+  persona: (p) => {
+    const x = p.persona || {};
+    if (!x.name && !x.role && !x.bio) return '';
+    const meta = [x.role, x.age && `Age ${x.age}`, x.location].filter(Boolean).join(' · ');
+    return `### ${x.name || 'Unnamed Persona'}\n` +
+      (meta ? `${meta}\n\n` : '') +
+      (x.quote ? `> ${x.quote}\n\n` : '') +
+      (x.bio ? `${x.bio}\n\n` : '') +
+      mdBlock('Goals', x.goals) +
+      mdBlock('Frustrations', x.frustrations) +
+      mdBlock('Behaviors', x.behaviors) +
+      mdBlock('Motivations', x.motivations) +
+      mdBlock('Personality', x.personality) +
+      mdBlock('Tools', x.tools);
+  },
+
+  competitors: (p) => {
+    const list = p.competitors || [];
+    const ca = p.competitiveAnalysis || {};
+    const axes = ca.positioningAxes || {};
+    if (!list.length && !axes.xLabel) return '';
+    const positioning = axes.xLabel
+      ? `### Positioning\n**X Axis:** ${axes.xLabel}\n**Y Axis:** ${axes.yLabel || ''}\n` +
+        (ca.yourPositioning ? `**Our Position:** x ${pct(ca.yourPositioning.x)}, y ${pct(ca.yourPositioning.y)}\n` : '')
+      : '';
+    const table = list.length
+      ? `\n### Comparison\n\n| Competitor | Target Market | Positioning | Pricing |\n|---|---|---|---|\n` +
+        list.map(c => `| ${c.name || ''} | ${c.targetMarket || ''} | ${c.positioning || ''} | ${c.pricing || ''} |`).join('\n') + '\n'
+      : '';
+    const detail = list.map(c =>
+      `\n### ${c.name || 'Untitled'}${c.website ? ` — ${c.website}` : ''}\n` +
+      (c.description ? `${c.description}\n\n` : '') +
+      mdField('Target Market', c.targetMarket) +
+      mdField('Pricing', c.pricing) +
+      mdField('Positioning', c.positioning) +
+      mdBlock('Key Features', c.features) +
+      mdBlock('Pain Points', c.painPoints)
+    ).join('');
+    return positioning + table + detail;
+  },
+
+  importanceMatrix: (p) => {
+    const items = (p.importanceMatrix || {}).items || [];
+    if (!items.length) return '';
+    const quadrant = (i) => {
+      const hi = i.importance >= 0.5, hs = i.solutionEffectiveness >= 0.5;
+      if (hi && !hs) return 'Critical Gap';
+      if (hi && hs) return 'Strength';
+      if (!hi && !hs) return 'Low Priority';
+      return 'Overkill';
+    };
+    return `| Item | Importance | Solution Effectiveness | Quadrant |\n|---|---|---|---|\n` +
+      items.map(i => `| ${i.label || ''} | ${pct(i.importance)} | ${pct(i.solutionEffectiveness)} | ${quadrant(i)} |`).join('\n') +
+      '\n\n' +
+      items.filter(i => i.description).map(i => `**${i.label}** — ${i.description}`).join('\n\n');
+  },
+
+  userFlow: (p) => {
+    const f = p.userFlow || {};
+    const steps = (f.steps || []).map((s, i) =>
+      `### ${i + 1}. ${s.label || 'Untitled'}${s.type ? ` _(${s.type})_` : ''}\n` +
+      (s.description ? `${s.description}\n\n` : '') +
+      mdField('System State', s.systemState) +
+      mdField('Nav Context', s.navContext) +
+      mdField('Friction', s.friction) +
+      mdField('Error Path', s.errorPath) +
+      ((s.branches || []).length
+        ? `**Branches:**\n${(s.branches || []).map(b => `- ${b.condition} → ${b.outcome}`).join('\n')}\n`
+        : '')
+    ).join('\n');
+    if (!f.persona && !f.goal && !steps) return '';
+    return mdField('Persona', f.persona) + mdField('Goal', f.goal) +
+      mdField('Entry Point', f.entryPoint) + mdField('Exit Point', f.exitPoint) +
+      (steps ? `\n${steps}` : '');
+  },
+
+  experienceMap: (p) => {
+    const e = p.experienceMap || {};
+    const phases = (e.phases || []).map((ph, i) =>
+      `### Phase ${i + 1}: ${ph.name || 'Untitled'}\n` +
+      mdField('Channel', ph.channel) +
+      mdBlock('Touchpoints', ph.touchpoints) +
+      mdField('Experience', ph.experience) +
+      mdField('Emotion', ph.emotion) +
+      mdBlock('Insights', ph.insights)
+    ).join('\n');
+    if (!e.overview && !phases) return '';
+    return (e.overview ? `${e.overview}\n\n` : '') + phases;
+  },
+
+  serviceBlueprint: (p) => {
+    const b = p.serviceBlueprint || {};
+    const steps = (b.steps || []).map((s, i) =>
+      `### Step ${i + 1}: ${s.name || 'Untitled'}\n` +
+      mdField('Customer Action', s.customerAction) +
+      mdField('Frontstage', s.frontstage) +
+      mdField('Backstage', s.backstage) +
+      mdField('Support', s.support) +
+      mdField('Evidence', s.evidence)
+    ).join('\n');
+    if (!b.overview && !steps) return '';
+    return (b.overview ? `${b.overview}\n\n` : '') + steps;
+  },
+
+  storyboard: (p) => {
+    const s = p.storyboard || {};
+    const frames = (s.frames || []).map(f =>
+      `### Panel ${f.panel || ''}\n` +
+      (f.description ? `${f.description}\n\n` : '') +
+      (f.dialogue ? `> ${f.dialogue}\n\n` : '') +
+      mdField('Emotion', f.emotion)
+    ).join('\n');
+    if (!s.scenario && !frames) return '';
+    return mdField('Scenario', s.scenario) + mdField('Persona', s.persona) + (frames ? `\n${frames}` : '');
+  },
+
+  informationArchitecture: (p) => {
+    const ia = p.informationArchitecture || {};
+    const nodes = ia.nodes || [];
+    if (!ia.overview && !nodes.length) return '';
+    const tree = nodes.map(n =>
+      `${'  '.repeat(Math.max(0, n.level || 0))}- **${n.label || ''}**${n.description ? ` — ${n.description}` : ''}`
+    ).join('\n');
+    return (ia.overview ? `${ia.overview}\n\n` : '') + tree;
+  },
+
+  insights: (p) => {
+    const ins = p.insights || {};
+    const metrics = ins.metrics || [];
+    if (!ins.northStar && !metrics.length) return '';
+    const byCat = metrics.reduce((acc, m) => {
+      const c = m.category || 'Other';
+      (acc[c] = acc[c] || []).push(m);
+      return acc;
+    }, {});
+    const table = Object.entries(byCat).map(([cat, ms]) =>
+      `### ${cat}\n\n| Metric | Target | How to Measure |\n|---|---|---|\n` +
+      (ms as any[]).map(m => `| ${m.name || ''} | ${m.target || ''} | ${m.measurement || ''} |`).join('\n') + '\n\n' +
+      (ms as any[]).filter(m => m.description).map(m => `**${m.name}** — ${m.description}`).join('\n\n')
+    ).join('\n\n');
+    return (ins.northStar ? `**North Star:** ${ins.northStar}\n\n` : '') + table;
+  },
+
+  figma: (p) => {
+    const f = p.figma || {};
+    if (!f.fileUrl && !f.fileId) return '';
+    return mdField('File URL', f.fileUrl) + mdField('File ID', f.fileId) + mdField('Status', f.generationStatus);
+  },
+
+  sources: (p) => {
+    const s = p.sources || [];
+    if (!s.length) return '';
+    return s.map(x =>
+      `### ${x.title || 'Untitled'}${x.type ? ` _(${x.type})_` : ''}\n` +
+      (x.addedAt ? `_Added ${String(x.addedAt).slice(0, 10)}_\n\n` : '') +
+      (x.content || '')
+    ).join('\n\n');
+  },
+};
+
+// Markdown for a single section, with its own title block.
+const generateSectionMarkdown = (key, p) => {
+  if (!p) return '';
+  const config = SECTIONS[key];
+  const body = (SECTION_MD[key] ? SECTION_MD[key](p) : '').trim();
+  return `# ${p.name}\n## ${config?.icon || ''} ${config?.name || key}\n` +
+    (config?.desc ? `_${config.desc}_\n` : '') +
+    `\n${body || '_Not yet defined._'}\n`;
+};
+
+// Full project export — composed from the same section renderers.
 const generateMarkdown = (p) => {
   if (!p) return '';
-  const segments = p.hypothesis?.segments || [];
-  const segmentsText = segments.map((s, i) =>
-    `### Segment ${i + 1}: ${s.name}\n**Who:** ${s.description}\n**Pain Point:** ${s.painPoint}\n**Resolution:** ${s.resolution}`
-  ).join('\n\n');
-  return `# ${p.name}
-**Status:** ${p.status} | **Hook:** ${p.hypothesis?.hook}
+  const meta = [
+    `**Status:** ${p.status || 'draft'}`,
+    (p.tags || []).length ? `**Tags:** ${p.tags.join(', ')}` : '',
+    p.lastUpdated ? `**Last Updated:** ${String(p.lastUpdated).slice(0, 10)}` : '',
+  ].filter(Boolean).join(' | ');
 
-## 1. Foundation Hypothesis
-**Universal Problem:** ${p.hypothesis?.problem}
+  const body = Object.keys(SECTIONS).map((key) => {
+    const rendered = (SECTION_MD[key] ? SECTION_MD[key](p) : '').trim();
+    if (!rendered) return ''; // skip sections with no content
+    const config = SECTIONS[key];
+    return `## ${config.icon} ${config.name}\n\n${rendered}\n`;
+  }).filter(Boolean).join('\n---\n\n');
 
-${segmentsText}
+  return `# ${p.name}\n${meta}\n\n${body}`;
+};
 
-**Universal Solution:** ${p.hypothesis?.solution}
-**Anti-Customer:** ${p.hypothesis?.antiCustomer}
+const safeFilename = (s) => String(s || 'export').replace(/[\/\\:*?"<>|]/g, '-').trim();
 
-## 2. Unfair Advantage
-**Capability:** ${p.advantage?.capability}
-**Motivation:** ${p.advantage?.motivation}
-**Insight:** ${p.advantage?.insight}
+const downloadMarkdown = (filename, content) => {
+  const blob = new Blob([content], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
-## 3. Principles
-${(p.principles || []).map(x => `- ${x}`).join('\n')}
-
-## 4. The Click Test
-**Riskiest Assumption:** ${p.clickTest?.riskiestAssumption}
-**Test Method:** ${p.clickTest?.testMethod}
-**Success Metric:** ${p.clickTest?.successMetric}
-`;
+const downloadSectionMarkdown = (key, p) => {
+  if (!p) return;
+  downloadMarkdown(
+    `${safeFilename(p.name)} - ${safeFilename(SECTIONS[key]?.name || key)}.md`,
+    generateSectionMarkdown(key, p)
+  );
 };
 
 const createSegment = () => ({
@@ -1867,12 +2119,11 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                 <select value={selectedProject.status} onChange={e => updateProject({ status: e.target.value })} style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12 }}>
                   {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <button onClick={() => {
-                  const blob = new Blob([generateMarkdown(selectedProject)], { type: 'text/markdown' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a'); a.href = url; a.download = `${selectedProject.name}.md`; a.click();
-                  URL.revokeObjectURL(url);
-                }} style={{ padding: '6px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Export MD</button>
+                <button
+                  onClick={() => downloadMarkdown(`${safeFilename(selectedProject.name)}.md`, generateMarkdown(selectedProject))}
+                  title="Download the entire project as Markdown (all sections)"
+                  style={{ padding: '6px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+                >Export MD</button>
                 <button
                   onClick={() => updateProject({ archived: !selectedProject.archived })}
                   title={selectedProject.archived ? 'Unarchive project' : 'Archive project'}
@@ -2007,6 +2258,23 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
 
             {/* Form Area */}
             <div style={{ flex: 1, overflowY: 'auto', padding: 32, boxSizing: 'border-box' as const }}>
+            {/* Shared section header — title + per-section Markdown export */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{SECTIONS[activeSection]?.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>{SECTIONS[activeSection]?.name}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{SECTIONS[activeSection]?.desc}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => downloadSectionMarkdown(activeSection, selectedProject)}
+                title={`Download "${SECTIONS[activeSection]?.name}" as Markdown`}
+                style={{ padding: '6px 12px', background: 'white', border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#475569', fontWeight: 500, flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                ↓ MD
+              </button>
+            </div>
 
             {activeSection === 'hypothesis' && (
               <>
