@@ -6,6 +6,7 @@ api/node_modules/
 .env
 .env.local
 .env.*.local
+.env.vercel
 
 # Build output
 dist/
@@ -25,3 +26,4 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+backups/
