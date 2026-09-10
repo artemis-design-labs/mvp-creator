@@ -89,22 +89,7 @@ const createProject = (name = 'Untitled Idea') => ({
     pains: [],
     gains: []
   },
-  persona: {
-    name: '',
-    role: '',
-    age: '',
-    location: '',
-    quote: '',
-    bio: '',
-    goals: [],
-    frustrations: [],
-    behaviors: [],
-    tools: [],
-    motivations: [],
-    personality: [],
-    photoUrl: '',
-    photoCredit: null
-  },
+  personas: [],
   archived: false,
   figma: {
     fileUrl: '',
@@ -283,10 +268,11 @@ const SECTION_MD = {
   },
 
   persona: (p) => {
-    const x = p.persona || {};
-    if (!x.name && !x.role && !x.bio) return '';
+    const all = getPersonas(p).filter(x => x.name || x.role || x.bio);
+    if (!all.length) return '';
+    return all.map(x => {
     const meta = [x.role, x.age && `Age ${x.age}`, x.location].filter(Boolean).join(' · ');
-    return `### ${x.name || 'Unnamed Persona'}\n` +
+    return `### ${x.name || 'Unnamed Persona'}${x.type ? ` _(${x.type} user${x.label ? ` — ${x.label}` : ''})_` : ''}\n` +
       (meta ? `${meta}\n\n` : '') +
       (x.quote ? `> ${x.quote}\n\n` : '') +
       (x.bio ? `${x.bio}\n\n` : '') +
@@ -296,6 +282,7 @@ const SECTION_MD = {
       mdBlock('Motivations', x.motivations) +
       mdBlock('Personality', x.personality) +
       mdBlock('Tools', x.tools);
+    }).join('\n');
   },
 
   competitors: (p) => {
@@ -491,6 +478,40 @@ const downloadSectionMarkdown = (key, p) => {
   );
 };
 
+// --- PERSONAS ---
+// Stored as an array so a project can carry one persona per customer segment
+// (primary and secondary). Older projects hold a single `persona` object;
+// getPersonas() normalises both shapes so nothing has to be migrated in place.
+
+const createPersona = (label = 'Primary User', type = 'primary') => ({
+  id: uuid(),
+  label,
+  type,
+  name: '',
+  role: '',
+  age: '',
+  location: '',
+  quote: '',
+  bio: '',
+  goals: [],
+  frustrations: [],
+  behaviors: [],
+  tools: [],
+  motivations: [],
+  personality: [],
+  photoUrl: '',
+  photoCredit: null
+});
+
+const getPersonas = (p) => {
+  if (Array.isArray(p?.personas) && p.personas.length) return p.personas;
+  const legacy = p?.persona;
+  if (legacy && (legacy.name || legacy.role || legacy.bio)) {
+    return [{ ...createPersona('Primary User', 'primary'), ...legacy, id: legacy.id || 'legacy-primary' }];
+  }
+  return [];
+};
+
 const createSegment = () => ({
   id: uuid(),
   name: '',
@@ -545,6 +566,7 @@ export default function App() {
   const [empathyError, setEmpathyError] = useState('');
   const [personaGenerating, setPersonaGenerating] = useState(false);
   const [personaError, setPersonaError] = useState('');
+  const [activePersonaIdx, setActivePersonaIdx] = useState(0);
   const [photoFetching, setPhotoFetching] = useState(false);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [pickerPhotos, setPickerPhotos] = useState<any[]>([]);
@@ -806,13 +828,36 @@ Return ONLY valid JSON with no markdown, no code fences:
     }
   };
 
-  const updatePersona = (updates) => {
+  const updatePersona = (updates, idx = activePersonaIdx) => {
     dirtyRef.current = true;
     setProjects(prev => prev.map(p => {
       if (p.id !== selectedId) return p;
-      const current = p.persona || { name: '', role: '', age: '', location: '', quote: '', bio: '', goals: [], frustrations: [], behaviors: [], tools: [], motivations: [], personality: [] };
-      return { ...p, persona: { ...current, ...updates }, lastUpdated: new Date().toISOString() };
+      const list = getPersonas(p);
+      const next = list.length ? [...list] : [createPersona('Primary User', 'primary')];
+      const target = Math.min(Math.max(idx, 0), next.length - 1);
+      next[target] = { ...next[target], ...updates };
+      return { ...p, personas: next, lastUpdated: new Date().toISOString() };
     }));
+  };
+
+  const addPersona = (label, type) => {
+    dirtyRef.current = true;
+    setProjects(prev => prev.map(p => {
+      if (p.id !== selectedId) return p;
+      const list = getPersonas(p);
+      return { ...p, personas: [...list, createPersona(label, type)], lastUpdated: new Date().toISOString() };
+    }));
+    setActivePersonaIdx(getPersonas(selectedProject).length);
+  };
+
+  const removePersona = (idx) => {
+    dirtyRef.current = true;
+    setProjects(prev => prev.map(p => {
+      if (p.id !== selectedId) return p;
+      const next = getPersonas(p).filter((_, i) => i !== idx);
+      return { ...p, personas: next, lastUpdated: new Date().toISOString() };
+    }));
+    setActivePersonaIdx(i => Math.max(0, i - (idx <= i ? 1 : 0)));
   };
 
   const updateFigma = (updates) => {
@@ -899,7 +944,7 @@ Return ONLY valid JSON with no markdown, no code fences:
     setExperienceMapGenerating(true);
     setExperienceMapError('');
     const h = selectedProject.hypothesis || {};
-    const persona = selectedProject.persona || {};
+    const persona = getPersonas(selectedProject)[0] || {};
     const prompt = `You are a senior UX strategist. Generate a detailed Experience Map for this product.
 
 PROJECT: ${selectedProject.name}
@@ -1002,7 +1047,7 @@ Generate 6-8 steps covering the core service delivery from first contact to post
     setStoryboardGenerating(true);
     setStoryboardError('');
     const h = selectedProject.hypothesis || {};
-    const persona = selectedProject.persona || {};
+    const persona = getPersonas(selectedProject)[0] || {};
     const prompt = `You are a product storyteller and UX designer. Generate a storyboard for this product.
 
 PROJECT: ${selectedProject.name}
@@ -1205,20 +1250,27 @@ Rules:
     }
   };
 
-  const generatePersona = async () => {
+  const generatePersona = async (segment = null) => {
     if (!selectedProject) return;
     setPersonaGenerating(true);
     setPersonaError('');
     const h = selectedProject.hypothesis || {};
+    const target = segment || (h.segments || [])[0] || null;
     const prompt = `You are an expert UX researcher specializing in User Persona creation.
 
 PROJECT: ${selectedProject.name}
-CUSTOMER SEGMENTS: ${(h.segments || []).map(s => `${s.name}: ${s.description}`).join(' | ') || 'Not defined'}
+CUSTOMER SEGMENTS: ${(h.segments || []).map(s => `${s.name} (${s.type || 'primary'}): ${s.description}`).join(' | ') || 'Not defined'}
 PROBLEM: ${h.problem || 'Not defined'}
 SOLUTION: ${h.solution || 'Not defined'}
 HOOK: ${h.hook || 'Not defined'}
 
-Create a single, specific, realistic primary user persona for this product. Make them feel like a real person — concrete details, not archetypes.
+${target ? `TARGET SEGMENT — build the persona for this segment specifically, not for the product's users in general:
+  Segment: ${target.name} (${target.type || 'primary'} user)
+  Who they are: ${target.description || ''}
+  Their pain point: ${target.painPoint || ''}
+  How the product resolves it: ${target.resolution || ''}` : ''}
+
+Create a single, specific, realistic persona representing ${target ? `the "${target.name}" segment` : 'the primary user'} of this product. Make them feel like a real person — concrete details, not archetypes.
 
 Return ONLY valid JSON with no markdown, no code fences:
 {
@@ -1246,7 +1298,7 @@ Return ONLY valid JSON with no markdown, no code fences:
       const text = data.content?.[0]?.text || '';
       const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       const parsed = JSON.parse(cleaned);
-      updatePersona(parsed);
+      updatePersona({ ...parsed, label: target?.name || 'Primary User', type: target?.type || 'primary' });
     } catch (e: any) {
       setPersonaError(e.message || 'Failed to generate persona. Try again.');
     } finally {
@@ -1476,7 +1528,7 @@ Return ONLY valid JSON with no markdown:
 
   const searchPickerPhotos = async (page = 1) => {
     if (!selectedProject) return;
-    const pr = selectedProject.persona || {};
+    const pr = getPersonas(selectedProject)[0] || {};
     const query = buildPhotoQuery(pr.role || '');
     const key = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
     setPickerLoading(true);
@@ -1763,7 +1815,7 @@ Generate 5–7 stages covering the full arc from Awareness to Value Realized.`;
     setUserFlowError('');
     const h = selectedProject.hypothesis || {};
     const uf = selectedProject.userFlow || {};
-    const pr = selectedProject.persona || {};
+    const pr = getPersonas(selectedProject)[0] || {};
     const personaContext = pr.name ? `${pr.name}, ${pr.role}` : ((h.segments || []).map(s => s.name).join(', ') || 'Not defined');
     const prompt = `You are an expert UX designer applying the following user flow principles:
 1. Anchor flows in the specific user persona and mental model — not generic UI steps.
@@ -2650,7 +2702,12 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
             })()}
 
             {activeSection === 'persona' && (() => {
-              const pr = selectedProject.persona || { name: '', role: '', age: '', location: '', quote: '', bio: '', goals: [], frustrations: [], behaviors: [], tools: [], motivations: [], personality: [] };
+              const personaList = getPersonas(selectedProject);
+              const pIdx = Math.min(activePersonaIdx, Math.max(0, personaList.length - 1));
+              const pr = personaList[pIdx] || createPersona();
+              const segments = selectedProject.hypothesis?.segments || [];
+              // Segments that don't have a persona yet — offered as one-click adds in the tab strip.
+              const unusedSegments = segments.filter((s: any) => !personaList.some((x: any) => x.label === s.name));
               const NAVY = '#1d2254';
               const PURPLE = '#6a24ff';
               const DARK = '#3a3d5b';
@@ -2660,9 +2717,55 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
               const heading: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: NAVY, marginBottom: 14, letterSpacing: '-0.01em' };
               return (
                 <div>
+                  {/* Persona tabs — one per customer segment */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {personaList.map((x: any, i: number) => (
+                      <div key={x.id || i} style={{ display: 'flex', alignItems: 'center' }}>
+                        <button
+                          onClick={() => setActivePersonaIdx(i)}
+                          style={{
+                            padding: '6px 12px', fontSize: 12, fontWeight: i === pIdx ? 700 : 500, cursor: 'pointer',
+                            background: i === pIdx ? '#f5f3ff' : 'white',
+                            color: i === pIdx ? '#6a24ff' : '#64748b',
+                            border: `1px solid ${i === pIdx ? '#c4b5fd' : '#e2e8f0'}`,
+                            borderRadius: 20, display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <span>{x.name || x.label || `Persona ${i + 1}`}</span>
+                          {x.type && (
+                            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: x.type === 'primary' ? '#6a24ff' : '#94a3b8' }}>
+                              {x.type}
+                            </span>
+                          )}
+                        </button>
+                        {personaList.length > 1 && i === pIdx && (
+                          <button
+                            onClick={() => removePersona(i)}
+                            title="Remove this persona"
+                            style={{ marginLeft: 4, background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', fontSize: 13, padding: 2 }}
+                          >✕</button>
+                        )}
+                      </div>
+                    ))}
+                    {unusedSegments.map((s: any) => (
+                      <button
+                        key={s.id || s.name}
+                        onClick={() => addPersona(s.name, s.type || 'secondary')}
+                        title={`Add a persona for the "${s.name}" segment`}
+                        style={{ padding: '6px 12px', fontSize: 12, background: '#f8fafc', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: 20, cursor: 'pointer' }}
+                      >+ {s.name}</button>
+                    ))}
+                    {!personaList.length && !unusedSegments.length && (
+                      <button
+                        onClick={() => addPersona('Primary User', 'primary')}
+                        style={{ padding: '6px 12px', fontSize: 12, background: '#f8fafc', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: 20, cursor: 'pointer' }}
+                      >+ Add persona</button>
+                    )}
+                  </div>
+
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
                     <button
-                      onClick={generatePersona}
+                      onClick={() => generatePersona(segments.find((s: any) => s.name === pr.label) || segments[pIdx] || null)}
                       disabled={personaGenerating}
                       style={{ padding: '8px 16px', background: personaGenerating ? '#94a3b8' : `linear-gradient(135deg, ${PURPLE}, #8b4cf6)`, color: 'white', border: 'none', borderRadius: 8, cursor: personaGenerating ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
