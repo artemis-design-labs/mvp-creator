@@ -33,12 +33,17 @@ const COMPETITOR_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4'
 
 const STATUSES = ['draft', 'hypothesis-set', 'testing', 'validated', 'killed'];
 
+// Run state, separate from the sprint-stage `status`. Missing means active.
+const PROJECT_STATUSES = ['active', 'paused'];
+const getProjectStatus = (p) => (p.projectStatus === 'paused' ? 'paused' : 'active');
+
 // --- DATA STRUCTURES ---
 
 const createProject = (name = 'Untitled Idea') => ({
   id: uuid(),
   name,
   status: 'draft',
+  projectStatus: 'active',
   lastUpdated: new Date().toISOString(),
   tags: [],
   categories: [],
@@ -443,7 +448,7 @@ const generateSectionMarkdown = (key, p) => {
 const generateMarkdown = (p) => {
   if (!p) return '';
   const meta = [
-    `**Status:** ${p.status || 'draft'}`,
+    `**Status:** ${getProjectStatus(p) === 'paused' ? 'Paused' : 'Active'} · ${p.status || 'draft'}`,
     (p.tags || []).length ? `**Tags:** ${p.tags.join(', ')}` : '',
     p.lastUpdated ? `**Last Updated:** ${String(p.lastUpdated).slice(0, 10)}` : '',
   ].filter(Boolean).join(' | ');
@@ -618,6 +623,13 @@ export default function App() {
 
   // Category State
   const [collapsedCategories, setCollapsedCategories] = useState({});
+  // Sidebar grouping: by category or by Active/Paused status
+  const [groupBy, setGroupBy] = useState<'category' | 'status'>(() => {
+    try { return localStorage.getItem('mvp:groupBy') === 'status' ? 'status' : 'category'; } catch { return 'category'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('mvp:groupBy', groupBy); } catch {}
+  }, [groupBy]);
   const [catInput, setCatInput] = useState('');
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
 
@@ -637,8 +649,15 @@ export default function App() {
   const archivedProjects = useMemo(() => projects.filter(p => p.archived), [projects]);
 
   const groupedProjects = useMemo(() => {
+    const live = projects.filter(p => !p.archived);
+    if (groupBy === 'status') {
+      return PROJECT_STATUSES
+        .map(st => ({ key: `__status_${st}__`, label: st === 'active' ? 'Active' : 'Paused', projects: live.filter(p => getProjectStatus(p) === st) }))
+        .filter(g => g.projects.length > 0);
+    }
     const groups = {};
-    projects.filter(p => !p.archived).forEach(p => {
+    // Active projects first within each category
+    [...live].sort((a, b) => Number(getProjectStatus(a) === 'paused') - Number(getProjectStatus(b) === 'paused')).forEach(p => {
       const cats = p.categories?.length ? p.categories : ['__uncategorized__'];
       cats.forEach(c => {
         if (!groups[c]) groups[c] = [];
@@ -652,7 +671,7 @@ export default function App() {
       return a.localeCompare(b);
     });
     return keys.map(key => ({ key, label: key === '__uncategorized__' ? 'Uncategorized' : key, projects: groups[key] }));
-  }, [projects]);
+  }, [projects, groupBy]);
 
   const toggleCategory = (key) => {
     setCollapsedCategories(prev => ({ ...prev, [key]: !prev[key] }));
@@ -2076,6 +2095,19 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
           </button>
         </div>
 
+        {!sidebarCollapsed && (
+          <div style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Group by</span>
+            {(['category', 'status'] as const).map(g => (
+              <button
+                key={g}
+                onClick={() => setGroupBy(g)}
+                style={{ padding: '3px 10px', fontSize: 11, borderRadius: 10, cursor: 'pointer', border: `1px solid ${groupBy === g ? '#bfdbfe' : '#e2e8f0'}`, background: groupBy === g ? '#eff6ff' : 'white', color: groupBy === g ? '#1e40af' : '#64748b', fontWeight: groupBy === g ? 600 : 500 }}
+              >{g === 'category' ? 'Category' : 'Status'}</button>
+            ))}
+          </div>
+        )}
+
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? 4 : 8 }}>
           {projects.length === 0 && !sidebarCollapsed && (
             <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No projects yet</div>
@@ -2089,7 +2121,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 6px 4px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                 >
                   <span style={{ fontSize: 10, color: '#94a3b8', transition: 'transform 0.15s', display: 'inline-block', transform: collapsedCategories[key] ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▾</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: key === '__uncategorized__' ? '#94a3b8' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: key === '__uncategorized__' || key === '__status_paused__' ? '#94a3b8' : '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
                   <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>{groupProjects.length}</span>
                 </button>
               )}
@@ -2102,7 +2134,8 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                     padding: sidebarCollapsed ? '8px 0' : '8px 8px 8px 18px', marginBottom: 2, borderRadius: 6, cursor: 'pointer',
                     background: p.id === selectedId ? '#eff6ff' : 'transparent',
                     border: p.id === selectedId ? '1px solid #bfdbfe' : '1px solid transparent',
-                    display: sidebarCollapsed ? 'flex' : 'block', justifyContent: 'center'
+                    display: sidebarCollapsed ? 'flex' : 'block', justifyContent: 'center',
+                    opacity: getProjectStatus(p) === 'paused' ? 0.7 : 1
                   }}
                 >
                   {sidebarCollapsed ? (
@@ -2114,6 +2147,9 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
                         <span style={{ fontSize: 10, padding: '1px 6px', background: p.status === 'validated' ? '#dcfce7' : p.status === 'killed' ? '#fee2e2' : '#fef3c7', borderRadius: 10, color: p.status === 'validated' ? '#166534' : p.status === 'killed' ? '#dc2626' : '#92400e' }}>{p.status}</span>
+                        {getProjectStatus(p) === 'paused' && (
+                          <span style={{ fontSize: 10, padding: '1px 6px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 10, color: '#64748b' }}>paused</span>
+                        )}
                       </div>
                     </>
                   )}
@@ -2168,6 +2204,15 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                 style={{ fontSize: 20, fontWeight: 700, border: 'none', outline: 'none', flex: 1, color: '#0f172a', minWidth: 0 }}
               />
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <select
+                  value={getProjectStatus(selectedProject)}
+                  onChange={e => updateProject({ projectStatus: e.target.value })}
+                  title="Project status"
+                  style={{ padding: '6px 10px', border: `1px solid ${getProjectStatus(selectedProject) === 'paused' ? '#cbd5e1' : '#86efac'}`, background: getProjectStatus(selectedProject) === 'paused' ? '#f8fafc' : '#f0fdf4', color: getProjectStatus(selectedProject) === 'paused' ? '#64748b' : '#166534', borderRadius: 6, fontSize: 12, fontWeight: 600 }}
+                >
+                  <option value="active">● Active</option>
+                  <option value="paused">❚❚ Paused</option>
+                </select>
                 <select value={selectedProject.status} onChange={e => updateProject({ status: e.target.value })} style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12 }}>
                   {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>

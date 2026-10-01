@@ -37,6 +37,7 @@ const blankProject = (overrides = {}) => ({
   id: randomUUID(),
   name: overrides.name || 'Untitled Idea',
   status: overrides.status || 'draft',
+  projectStatus: overrides.projectStatus || 'active',
   archived: overrides.archived || false,
   lastUpdated: new Date().toISOString(),
   tags: overrides.tags || [],
