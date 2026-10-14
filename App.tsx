@@ -201,13 +201,21 @@ const setNestedValue = (obj, path, value) => {
 // One renderer per section. The global export composes these, so there is a
 // single source of truth and per-section output can never drift from the whole.
 
+// List fields are sometimes stored as a newline/bullet string (older or AI-written
+// data) rather than an array, so normalize before iterating.
+const toList = (v) => {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === 'string') return v.split('\n').map(s => s.replace(/^\s*[-*•]\s*/, '').trim()).filter(Boolean);
+  return [];
+};
+
 const mdList = (arr, bullet = '-') =>
-  (arr || []).filter(Boolean).map(x => `${bullet} ${x}`).join('\n');
+  toList(arr).map(x => `${bullet} ${x}`).join('\n');
 
 const mdField = (label, value) => (value ? `**${label}:** ${value}\n` : '');
 
 const mdBlock = (label, arr) =>
-  (arr || []).length ? `**${label}:**\n${mdList(arr)}\n` : '';
+  toList(arr).length ? `**${label}:**\n${mdList(arr)}\n` : '';
 
 const pct = (n) => (typeof n === 'number' ? `${Math.round(n * 100)}%` : '—');
 
@@ -268,8 +276,8 @@ const SECTION_MD = {
   empathyMap: (p) => {
     const e = p.empathyMap || {};
     const keys = [['Says', e.says], ['Thinks', e.thinks], ['Does', e.does], ['Feels', e.feels], ['Pains', e.pains], ['Gains', e.gains]];
-    if (!keys.some(([, v]) => (v || []).length)) return '';
-    return keys.map(([label, v]) => ((v || []).length ? `### ${label}\n${mdList(v)}\n` : '')).join('\n');
+    if (!keys.some(([, v]) => toList(v).length)) return '';
+    return keys.map(([label, v]) => (toList(v).length ? `### ${label}\n${mdList(v)}\n` : '')).join('\n');
   },
 
   persona: (p) => {
@@ -549,6 +557,31 @@ const createStage = (name = 'New Stage') => ({
   opportunities: [],
 });
 
+// --- RESPONSIVE ---
+
+const MOBILE_QUERY = '(max-width: 768px)';
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY);
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isMobile;
+};
+
+// Layout is all inline styles, so phone overrides target the rendered style
+// attribute and need !important to win over it.
+const RESPONSIVE_CSS = `
+@media ${MOBILE_QUERY} {
+  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  input, select, textarea { font-size: 16px !important; }
+  .section-nav::-webkit-scrollbar { display: none; }
+}
+`;
+
 // --- MAIN APP ---
 
 export default function App() {
@@ -556,7 +589,12 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [activeSection, setActiveSection] = useState('hypothesis');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isMobile = useIsMobile();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // The icon-only collapsed rail is a desktop affordance; the mobile drawer is always full width
+  const railCollapsed = sidebarCollapsed && !isMobile;
   const [showAIGenerate, setShowAIGenerate] = useState(false);
+  useEffect(() => { setMobileNavOpen(false); }, [selectedId, showAIGenerate]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -2062,18 +2100,28 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f1f5f9' }}>
-      
-      {/* Sidebar */}
-      <div style={{ width: sidebarCollapsed ? 60 : 260, background: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'width 0.2s' }}>
-        <div style={{ padding: 16, borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between' }}>
-          {!sidebarCollapsed && <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a' }}>Click Framework</div>}
-          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>{sidebarCollapsed ? '»' : '«'}</button>
+    <div style={{ display: 'flex', height: '100dvh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: '#f1f5f9' }}>
+      <style>{RESPONSIVE_CSS}</style>
+
+      {/* Mobile drawer backdrop */}
+      {isMobile && mobileNavOpen && (
+        <div onClick={() => setMobileNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 900 }} />
+      )}
+
+      {/* Sidebar — fixed rail on desktop, slide-in drawer on mobile */}
+      <div style={isMobile
+        ? { position: 'fixed', top: 0, left: 0, bottom: 0, width: 'min(300px, 85vw)', zIndex: 950, background: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transform: mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.2s', boxShadow: mobileNavOpen ? '0 0 40px rgba(0,0,0,0.2)' : 'none' }
+        : { width: railCollapsed ? 60 : 260, flexShrink: 0, background: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'width 0.2s' }}>
+        <div style={{ padding: 16, borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: railCollapsed ? 'center' : 'space-between' }}>
+          {!railCollapsed && <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a' }}>Click Framework</div>}
+          {isMobile
+            ? <button onClick={() => setMobileNavOpen(false)} aria-label="Close menu" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: 4, color: '#64748b' }}>✕</button>
+            : <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>{sidebarCollapsed ? '»' : '«'}</button>}
         </div>
         
         <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, borderBottom: '1px solid #e2e8f0' }}>
           <button onClick={() => setShowAIGenerate(true)} style={{ padding: '10px', background: 'linear-gradient(135deg, #4f46e5, #3b82f6)', color: 'white', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13 }}>
-            <span>✨</span> {!sidebarCollapsed && 'AI Foundation Sprint'}
+            <span>✨</span> {!railCollapsed && 'AI Foundation Sprint'}
           </button>
           <button onClick={async () => {
             try {
@@ -2091,11 +2139,11 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
               setSelectedId(p.id);
             }
           }} style={{ padding: '8px', background: 'white', border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-            + {!sidebarCollapsed && 'New Blank Project'}
+            + {!railCollapsed && 'New Blank Project'}
           </button>
         </div>
 
-        {!sidebarCollapsed && (
+        {!railCollapsed && (
           <div style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Group by</span>
             {(['category', 'status'] as const).map(g => (
@@ -2108,14 +2156,14 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? 4 : 8 }}>
-          {projects.length === 0 && !sidebarCollapsed && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: railCollapsed ? 4 : 8 }}>
+          {projects.length === 0 && !railCollapsed && (
             <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>No projects yet</div>
           )}
           {groupedProjects.map(({ key, label, projects: groupProjects }) => (
-            <div key={key} style={{ marginBottom: sidebarCollapsed ? 0 : 4 }}>
+            <div key={key} style={{ marginBottom: railCollapsed ? 0 : 4 }}>
               {/* Category header */}
-              {!sidebarCollapsed && (
+              {!railCollapsed && (
                 <button
                   onClick={() => toggleCategory(key)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 6px 4px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
@@ -2131,14 +2179,14 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                   key={`${key}-${p.id}`}
                   onClick={() => { setSelectedId(p.id); setConfirmDelete(false); }}
                   style={{
-                    padding: sidebarCollapsed ? '8px 0' : '8px 8px 8px 18px', marginBottom: 2, borderRadius: 6, cursor: 'pointer',
+                    padding: railCollapsed ? '8px 0' : '8px 8px 8px 18px', marginBottom: 2, borderRadius: 6, cursor: 'pointer',
                     background: p.id === selectedId ? '#eff6ff' : 'transparent',
                     border: p.id === selectedId ? '1px solid #bfdbfe' : '1px solid transparent',
-                    display: sidebarCollapsed ? 'flex' : 'block', justifyContent: 'center',
+                    display: railCollapsed ? 'flex' : 'block', justifyContent: 'center',
                     opacity: getProjectStatus(p) === 'paused' ? 0.7 : 1
                   }}
                 >
-                  {sidebarCollapsed ? (
+                  {railCollapsed ? (
                     <div title={p.name || 'Untitled'} style={{ width: 8, height: 8, borderRadius: '50%', background: p.id === selectedId ? '#3b82f6' : '#cbd5e1' }} />
                   ) : (
                     <>
@@ -2159,7 +2207,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
           ))}
 
           {/* Archived section */}
-          {!sidebarCollapsed && archivedProjects.length > 0 && (
+          {!railCollapsed && archivedProjects.length > 0 && (
             <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 4 }}>
               <button
                 onClick={() => setShowArchived(v => !v)}
@@ -2193,17 +2241,20 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
 
       {/* Main Content */}
       {selectedProject ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           
           {/* Header */}
-          <div style={{ padding: '16px 24px', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ padding: isMobile ? '12px 16px' : '16px 24px', background: 'white', borderBottom: '1px solid #e2e8f0', ...(isMobile && { maxHeight: '40dvh', overflowY: 'auto' }) }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 8 : 0 }}>
+              {isMobile && (
+                <button onClick={() => setMobileNavOpen(true)} aria-label="Open projects" style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, cursor: 'pointer', fontSize: 18, padding: '4px 10px', color: '#334155', flexShrink: 0 }}>☰</button>
+              )}
               <input 
                 value={selectedProject.name} 
                 onChange={e => updateProject({ name: e.target.value })}
-                style={{ fontSize: 20, fontWeight: 700, border: 'none', outline: 'none', flex: 1, color: '#0f172a', minWidth: 0 }}
+                style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, border: 'none', outline: 'none', flex: 1, color: '#0f172a', minWidth: 0 }}
               />
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0, ...(isMobile && { flexWrap: 'wrap', width: '100%' }) }}>
                 <select
                   value={getProjectStatus(selectedProject)}
                   onChange={e => updateProject({ projectStatus: e.target.value })}
@@ -2329,18 +2380,22 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
           </div>
 
           {/* Section nav + Form Area */}
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
 
-            {/* Vertical section nav */}
-            <div style={{ width: 210, borderRight: '1px solid #e2e8f0', background: 'white', overflowY: 'auto', flexShrink: 0, paddingTop: 8, paddingBottom: 8 }}>
+            {/* Section nav — vertical on desktop, horizontal tab strip on mobile */}
+            <div className="section-nav" style={isMobile
+              ? { display: 'flex', overflowX: 'auto', borderBottom: '1px solid #e2e8f0', background: 'white', flexShrink: 0, scrollbarWidth: 'none' }
+              : { width: 210, borderRight: '1px solid #e2e8f0', background: 'white', overflowY: 'auto', flexShrink: 0, paddingTop: 8, paddingBottom: 8 }}>
               {Object.entries(SECTIONS).map(([key, config]) => (
                 <button
                   key={key}
                   onClick={() => setActiveSection(key)}
                   style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 9,
-                    padding: '9px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
-                    borderLeft: `3px solid ${activeSection === key ? '#4f46e5' : 'transparent'}`,
+                    width: isMobile ? 'auto' : '100%', flexShrink: 0, display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 9,
+                    padding: isMobile ? '10px 12px' : '9px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
+                    ...(isMobile
+                      ? { borderBottom: `2px solid ${activeSection === key ? '#4f46e5' : 'transparent'}`, whiteSpace: 'nowrap' }
+                      : { borderLeft: `3px solid ${activeSection === key ? '#4f46e5' : 'transparent'}` }),
                     background: activeSection === key ? '#f5f3ff' : 'transparent',
                     color: activeSection === key ? '#4f46e5' : '#64748b',
                     fontSize: 13, fontWeight: activeSection === key ? 600 : 400,
@@ -2354,7 +2409,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
             </div>
 
             {/* Form Area */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 32, boxSizing: 'border-box' as const }}>
+            <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'auto', padding: isMobile ? 16 : 32, boxSizing: 'border-box' as const }}>
             {/* Shared section header — title + per-section Markdown export */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -2830,10 +2885,10 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                   )}
 
                   {/* Figma persona card — dark navy container */}
-                  <div style={{ background: NAVY, borderRadius: 28, padding: 28, display: 'flex', gap: 22, boxSizing: 'border-box' }}>
+                  <div style={{ background: NAVY, borderRadius: isMobile ? 18 : 28, padding: isMobile ? 14 : 28, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 14 : 22, boxSizing: 'border-box' }}>
 
                     {/* LEFT COLUMN */}
-                    <div style={{ width: '31%', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                    <div style={{ width: isMobile ? '100%' : '31%', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
 
                       {/* Profile card */}
                       <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
@@ -2980,13 +3035,13 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
               return (
                 <div>
                   {/* Controls */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                     <div style={{ fontSize: 13, color: '#64748b' }}>
                       {competitors.length > 0
                         ? `${competitors.length} competitor${competitors.length !== 1 ? 's' : ''} · ${ca.generatedAt ? 'Analysis updated ' + new Date(ca.generatedAt).toLocaleDateString() : 'Analysis not generated'}`
                         : 'No competitors yet'}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       {competitors.length > 1 && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
                           Sort
@@ -4275,6 +4330,9 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
             <div style={{ fontSize: 48, marginBottom: 16 }}>🧪</div>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No project selected</div>
             <div style={{ fontSize: 13 }}>Create a Foundation Sprint or select one from the sidebar</div>
+            {isMobile && (
+              <button onClick={() => setMobileNavOpen(true)} style={{ marginTop: 16, padding: '10px 16px', background: 'white', border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#334155' }}>☰ Open projects</button>
+            )}
           </div>
         </div>
       )}
