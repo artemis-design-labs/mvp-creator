@@ -9,25 +9,97 @@ const uuid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toStr
 
 // The Click Framework Sections
 const SECTIONS = {
-  hypothesis: { name: 'Foundation Hypothesis', icon: '🏗️', desc: 'Universal Problem, Segments, Solution, & The Hook' },
-  advantage: { name: 'Unfair Advantage', icon: '⚡', desc: 'Capability, Motivation, & Insight' },
-  principles: { name: 'Principles', icon: '🧭', desc: 'Decision Guardrails (Boring > Exciting)' },
-  clickTest: { name: 'The Click Test', icon: '🧪', desc: 'Riskiest Assumption & Validation' },
-  blueprint: { name: 'Blueprint', icon: '🗺️', desc: 'Execution Plan & Timeline' },
-  journey: { name: 'Journey Map', icon: '🚶', desc: 'User journey from Awareness to Value' },
-  empathyMap: { name: 'Empathy Map', icon: '🧠', desc: 'What the customer Says, Thinks, Does & Feels' },
-  persona: { name: 'User Persona', icon: '👤', desc: 'Who the customer is — goals, behaviors & frustrations' },
-  competitors: { name: 'Competitors', icon: '⚔️', desc: 'Competitive landscape, feature comparison & positioning map' },
-  importanceMatrix: { name: 'Importance-Solution Matrix', icon: '🎯', desc: 'Map problems by importance vs. how well current solutions address them' },
-  userFlow: { name: 'User Flow', icon: '🔀', desc: 'Map the end-to-end user journey through decisions, system states, and edge cases' },
-  experienceMap: { name: 'Experience Map', icon: '🌐', desc: 'Full customer experience across all channels and touchpoints' },
-  serviceBlueprint: { name: 'Service Blueprint', icon: '📐', desc: 'Frontstage, backstage, and support processes aligned to the customer journey' },
-  storyboard: { name: 'Storyboard', icon: '🎬', desc: 'Scene-by-scene narrative of how the customer experiences the product' },
-  informationArchitecture: { name: 'Information Architecture', icon: '🌲', desc: 'Structural hierarchy of screens, sections, and navigation' },
-  insights: { name: 'Insights & Metrics', icon: '📊', desc: 'North star metric, AARRR funnel, and measurable targets' },
-  figma: { name: 'Figma', icon: '🎨', desc: 'Generate product wireframes in Figma' },
-  sources: { name: 'Sources', icon: '📎', desc: 'Reference materials' }
+  hypothesis: { name: 'Foundation Hypothesis', icon: '🏗️', desc: 'Universal Problem, Segments, Solution, & The Hook', group: 'details' },
+  advantage: { name: 'Unfair Advantage', icon: '⚡', desc: 'Capability, Motivation, & Insight', group: 'details' },
+  principles: { name: 'Principles', icon: '🧭', desc: 'Decision Guardrails (Boring > Exciting)', group: 'details' },
+  clickTest: { name: 'The Click Test', icon: '🧪', desc: 'Riskiest Assumption & Validation', group: 'details' },
+  blueprint: { name: 'Blueprint', icon: '🗺️', desc: 'Execution Plan & Timeline', group: 'details' },
+  journey: { name: 'Journey Map', icon: '🚶', desc: 'User journey from Awareness to Value', group: 'details' },
+  empathyMap: { name: 'Empathy Map', icon: '🧠', desc: 'What the customer Says, Thinks, Does & Feels', group: 'details' },
+  persona: { name: 'User Persona', icon: '👤', desc: 'Who the customer is — goals, behaviors & frustrations', group: 'details' },
+  competitors: { name: 'Competitors', icon: '⚔️', desc: 'Competitive landscape, feature comparison & positioning map', group: 'details' },
+  importanceMatrix: { name: 'Importance-Solution Matrix', icon: '🎯', desc: 'Map problems by importance vs. how well current solutions address them', group: 'details' },
+  userFlow: { name: 'User Flow', icon: '🔀', desc: 'Map the end-to-end user journey through decisions, system states, and edge cases', group: 'details' },
+  experienceMap: { name: 'Experience Map', icon: '🌐', desc: 'Full customer experience across all channels and touchpoints', group: 'details' },
+  serviceBlueprint: { name: 'Service Blueprint', icon: '📐', desc: 'Frontstage, backstage, and support processes aligned to the customer journey', group: 'details' },
+  storyboard: { name: 'Storyboard', icon: '🎬', desc: 'Scene-by-scene narrative of how the customer experiences the product', group: 'details' },
+  informationArchitecture: { name: 'Information Architecture', icon: '🌲', desc: 'Structural hierarchy of screens, sections, and navigation', group: 'details' },
+  insights: { name: 'Insights & Metrics', icon: '📊', desc: 'North star metric, AARRR funnel, and measurable targets', group: 'details' },
+  figma: { name: 'Figma', icon: '🎨', desc: 'Generate product wireframes in Figma', group: 'details' },
+  sources: { name: 'Sources', icon: '📎', desc: 'Reference materials', group: 'details' },
+
+  // Career Profile — how the project reads on a portfolio or resume
+  cpIdentity: { name: 'Identity', icon: '🪪', desc: 'Product name, type, company, title & dates', group: 'career' },
+  cpContext: { name: 'Context', icon: '🧩', desc: 'The problem, the users, their scale & the stakes', group: 'career' },
+  cpOwnership: { name: 'Ownership & Scope', icon: '🎯', desc: 'What you owned, your team & your decision rights', group: 'career' },
+  cpWork: { name: 'The Work', icon: '🛠️', desc: 'Surfaces, tokens, components, governance, tooling & AI', group: 'career' },
+  cpBusinessImpact: { name: 'Business Impact', icon: '📈', desc: 'Efficiency, Errors, Cost & Deployments', group: 'career' },
+  cpDesignImpact: { name: 'Design & System Impact', icon: '📐', desc: 'Velocity, Quality & Adoption', group: 'career' },
+  cpEvidence: { name: 'Evidence', icon: '🔎', desc: 'How each number can be checked', group: 'career' },
+  cpResume: { name: 'Resume Bullets', icon: '📝', desc: 'How the project reads on a resume', group: 'career' }
 };
+
+// Parent groups for the section nav
+const SECTION_GROUPS = { details: 'Project Details', career: 'Career Profile' };
+
+// --- CAREER PROFILE ---
+
+const IMPACT_STATUSES = ['Measured', 'Estimated', 'Target', 'Unsourced'];
+const IMPACT_STATUS_HELP = {
+  Measured: 'From a dashboard or report',
+  Estimated: 'A defensible calculation',
+  Target: 'A goal, never shown as a result',
+  Unsourced: 'Fix it or cut it',
+};
+const IMPACT_AREAS = {
+  businessImpact: ['Efficiency', 'Errors', 'Cost', 'Deployments'],
+  designImpact: ['Velocity', 'Quality', 'Adoption'],
+};
+
+const createCareerProfile = () => ({
+  identity: { productName: '', typePrimary: '', typeSecondary: '', typeTertiary: '', definition: '', company: '', title: '', start: '', end: '' },
+  context: { problem: '', users: '', scale: '', stakes: '' },
+  ownership: { owned: '', builtFromZero: false, teamSize: '', functions: [], decisionRights: '', hardDecision: '' },
+  work: { surfaces: [], tokens: [], components: [], governance: [], tooling: [], aiPatterns: [], aiGuardrails: [], aiIntegrations: [] },
+  businessImpact: [], // [{ id, claim, status, area, sourceDoc, verificationPath }]
+  designImpact: [],
+  resume: { ownership: '', judgment: '', system: '', governance: '', judgmentSystem: '', governanceOwnership: '' },
+});
+
+// Older projects have no careerProfile; fill any missing parts with blanks.
+const getCareerProfile = (p) => {
+  const blank = createCareerProfile();
+  const cp = p?.careerProfile || {};
+  return {
+    identity: { ...blank.identity, ...cp.identity },
+    context: { ...blank.context, ...cp.context },
+    ownership: { ...blank.ownership, ...cp.ownership },
+    work: { ...blank.work, ...cp.work },
+    businessImpact: Array.isArray(cp.businessImpact) ? cp.businessImpact : [],
+    designImpact: Array.isArray(cp.designImpact) ? cp.designImpact : [],
+    resume: { ...blank.resume, ...cp.resume },
+  };
+};
+
+const CAREER_WORK_FIELDS = [
+  ['surfaces', 'Product surfaces shipped', 'Screens or flows, e.g. "Morning Queue — the first screen of the day…"'],
+  ['tokens', 'Tokens', 'Your design-token work, e.g. "3-tier token architecture…"'],
+  ['components', 'Components', 'Component work, e.g. "42-component React library…"'],
+  ['governance', 'Governance', 'How the system was kept clean: contribution model, versioning, checks'],
+  ['tooling', 'Tooling', 'Tools you built, e.g. "Figma plugin, lint rules, AI-run checks"'],
+  ['aiPatterns', 'AI patterns', 'What the AI does, e.g. "Risk score for every family…"'],
+  ['aiGuardrails', 'AI guardrails', 'Where the human stays in control, e.g. "Human review for dosing…"'],
+  ['aiIntegrations', 'AI integrations', 'Systems it connects to, e.g. "EHR — read-only connection"'],
+];
+
+const CAREER_RESUME_FIELDS = [
+  ['ownership', '1 · Ownership', 'What you owned end to end, the product in plain words, who it was for, and one scale number'],
+  ['judgment', '2 · Judgment', 'Your signature decision: what the AI does, where the human decides, and the trade-off'],
+  ['system', '3 · System', "What you left behind, how it's kept clean, and proof it spread; a sourced result number goes at the end"],
+  ['governance', 'Governance', "For design-systems resumes: how it's governed and what it improved"],
+  ['judgmentSystem', 'Two-bullet version · Judgment + System', 'Both in one line, decision first'],
+  ['governanceOwnership', 'Two-bullet version · Governance + Ownership', 'Both in one line'],
+];
 
 const COMPETITOR_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899'];
 
@@ -139,7 +211,10 @@ const createProject = (name = 'Untitled Idea') => ({
   insights: {
     northStar: '',
     metrics: []
-  }
+  },
+
+  // Career Profile
+  careerProfile: createCareerProfile()
 });
 
 const createSeedProject = () => {
@@ -218,6 +293,13 @@ const mdBlock = (label, arr) =>
   toList(arr).length ? `**${label}:**\n${mdList(arr)}\n` : '';
 
 const pct = (n) => (typeof n === 'number' ? `${Math.round(n * 100)}%` : '—');
+
+const mdImpact = (items) => {
+  const rows = (items || []).filter(n => n.claim);
+  if (!rows.length) return '';
+  return '| Claim | Status | Area | Source Doc |\n|---|---|---|---|\n' +
+    rows.map(n => `| ${n.claim} | ${n.status || ''} | ${n.area || ''} | ${n.sourceDoc || ''} |`).join('\n');
+};
 
 const SECTION_MD = {
   hypothesis: (p) => {
@@ -440,6 +522,51 @@ const SECTION_MD = {
       (x.content || '')
     ).join('\n\n');
   },
+
+  cpIdentity: (p) => {
+    const i = getCareerProfile(p).identity;
+    const types = [i.typePrimary, i.typeSecondary, i.typeTertiary].filter(Boolean).join(' / ');
+    const dates = [i.start, i.end].filter(Boolean).join(' – ');
+    return mdField('Project Name', i.productName) + mdField('Product Type', types) +
+      mdField('Definition', i.definition) + mdField('Company', i.company) +
+      mdField('Title', i.title) + mdField('Dates', dates);
+  },
+
+  cpContext: (p) => {
+    const c = getCareerProfile(p).context;
+    return mdField('Problem', c.problem) + mdField('Users', c.users) +
+      mdField('Scale', c.scale) + mdField('Stakes', c.stakes);
+  },
+
+  cpOwnership: (p) => {
+    const o = getCareerProfile(p).ownership;
+    const any = o.owned || o.builtFromZero || o.teamSize || toList(o.functions).length || o.decisionRights || o.hardDecision;
+    if (!any) return '';
+    return mdField('What I Owned', o.owned) + (o.builtFromZero ? '**Built from zero:** Yes\n' : '') +
+      mdField('Team Size', o.teamSize) + mdBlock('Functions', o.functions) +
+      mdField('Decision Rights', o.decisionRights) + mdField('Hard Decision', o.hardDecision);
+  },
+
+  cpWork: (p) => {
+    const w = getCareerProfile(p).work;
+    return CAREER_WORK_FIELDS.map(([k, label]) => mdBlock(label, w[k])).join('');
+  },
+
+  cpBusinessImpact: (p) => mdImpact(getCareerProfile(p).businessImpact),
+  cpDesignImpact: (p) => mdImpact(getCareerProfile(p).designImpact),
+
+  cpEvidence: (p) => {
+    const cp = getCareerProfile(p);
+    const all = [...cp.businessImpact, ...cp.designImpact].filter(n => n.claim);
+    if (!all.length) return '';
+    return '| Claim | Status | Source Doc | Verification Path |\n|---|---|---|---|\n' +
+      all.map(n => `| ${n.claim} | ${n.status || ''} | ${n.sourceDoc || ''} | ${n.verificationPath || ''} |`).join('\n');
+  },
+
+  cpResume: (p) => {
+    const r = getCareerProfile(p).resume;
+    return CAREER_RESUME_FIELDS.map(([k, label]) => mdField(label, r[k])).join('');
+  },
 };
 
 // Markdown for a single section, with its own title block.
@@ -583,6 +710,59 @@ const RESPONSIVE_CSS = `
 `;
 
 // --- MAIN APP ---
+
+// --- CAREER PROFILE FIELDS ---
+
+const careerLabel = { fontSize: 13, fontWeight: 700, color: '#1e293b', display: 'block', marginBottom: 6 };
+const careerHelp = { fontSize: 12, color: '#64748b', marginBottom: 8, fontStyle: 'italic' as const };
+const careerInput = { width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' as const, background: 'white' };
+
+const CareerInput = ({ label, helperText = '', value, onChange, placeholder = '' }) => (
+  <div style={{ marginBottom: 20, minWidth: 0 }}>
+    <label style={careerLabel}>{label}</label>
+    {helperText && <div style={careerHelp}>{helperText}</div>}
+    <input value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={careerInput} />
+  </div>
+);
+
+// One row per number. `sources` feeds the Source doc suggestions.
+const ImpactList = ({ items, areas, sources, onChange, emptyHint }) => {
+  const update = (id, patch) => onChange(items.map(n => (n.id === id ? { ...n, ...patch } : n)));
+  const listId = `impact-sources-${areas[0]}`;
+  return (
+    <div>
+      <datalist id={listId}>{sources.map(t => <option key={t} value={t} />)}</datalist>
+      {items.length === 0 && (
+        <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 13, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>{emptyHint}</div>
+      )}
+      {items.map(n => (
+        <div key={n.id} style={{ padding: 14, background: 'white', border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 10 }}>
+            <input value={n.claim || ''} onChange={e => update(n.id, { claim: e.target.value })} placeholder='Claim, e.g. "Cut onboarding time from 9 to 4 minutes"' style={{ ...careerInput, fontWeight: 600 }} />
+            <button onClick={() => onChange(items.filter(x => x.id !== n.id))} title="Remove" style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '8px 4px' }}>✕</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+            <select value={n.area || ''} onChange={e => update(n.id, { area: e.target.value })} style={careerInput}>
+              <option value="">Area…</option>
+              {areas.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select value={n.status || ''} onChange={e => update(n.id, { status: e.target.value })} title={IMPACT_STATUS_HELP[n.status] || ''} style={careerInput}>
+              <option value="">Status…</option>
+              {IMPACT_STATUSES.map(st => <option key={st} value={st}>{st} — {IMPACT_STATUS_HELP[st]}</option>)}
+            </select>
+            <input list={listId} value={n.sourceDoc || ''} onChange={e => update(n.id, { sourceDoc: e.target.value })} placeholder="Source doc" style={careerInput} />
+          </div>
+        </div>
+      ))}
+      <button
+        onClick={() => onChange([...items, { id: uuid(), claim: '', status: '', area: '', sourceDoc: '', verificationPath: '' }])}
+        style={{ padding: '8px 16px', background: '#334155', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+      >
+        + Add number
+      </button>
+    </div>
+  );
+};
 
 export default function App() {
   const [projects, setProjects] = useState([]);
@@ -798,6 +978,17 @@ export default function App() {
   const updateProject = (updates) => {
     dirtyRef.current = true;
     setProjects(prev => prev.map(p => p.id === selectedId ? { ...p, ...updates, lastUpdated: new Date().toISOString() } : p));
+  };
+
+  // Career Profile: `part` is a sub-object (identity, context…) or an impact list.
+  const updateCareer = (part, value) => {
+    dirtyRef.current = true;
+    setProjects(prev => prev.map(p => {
+      if (p.id !== selectedId) return p;
+      const cp = getCareerProfile(p);
+      const next = Array.isArray(cp[part]) ? value : { ...cp[part], ...value };
+      return { ...p, careerProfile: { ...cp, [part]: next }, lastUpdated: new Date().toISOString() };
+    }));
   };
 
   const updateNested = (section, field, value) => {
@@ -2382,11 +2573,27 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
           {/* Section nav + Form Area */}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
 
-            {/* Section nav — vertical on desktop, horizontal tab strip on mobile */}
+            {/* Section nav — parent toggle on top; vertical list on desktop, horizontal tab strip on mobile */}
+            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, minHeight: 0, ...(isMobile ? {} : { width: 210, borderRight: '1px solid #e2e8f0' }), background: 'white' }}>
+            <div style={{ display: 'flex', margin: isMobile ? '8px 12px 0' : '10px 10px 4px', padding: 3, background: '#f1f5f9', borderRadius: 8, flexShrink: 0 }}>
+              {Object.entries(SECTION_GROUPS).map(([group, label]) => {
+                const on = (SECTIONS[activeSection]?.group || 'details') === group;
+                return (
+                  <button
+                    key={group}
+                    onClick={() => { if (!on) setActiveSection(Object.keys(SECTIONS).find(k => SECTIONS[k].group === group)); }}
+                    style={{ flex: 1, padding: '6px 4px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+                      background: on ? 'white' : 'transparent', color: on ? '#4f46e5' : '#64748b', boxShadow: on ? '0 1px 2px rgba(15,23,42,0.12)' : 'none' }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
             <div className="section-nav" style={isMobile
               ? { display: 'flex', overflowX: 'auto', borderBottom: '1px solid #e2e8f0', background: 'white', flexShrink: 0, scrollbarWidth: 'none' }
-              : { width: 210, borderRight: '1px solid #e2e8f0', background: 'white', overflowY: 'auto', flexShrink: 0, paddingTop: 8, paddingBottom: 8 }}>
-              {Object.entries(SECTIONS).map(([key, config]) => (
+              : { flex: 1, minHeight: 0, background: 'white', overflowY: 'auto', paddingTop: 4, paddingBottom: 8 }}>
+              {Object.entries(SECTIONS).filter(([, c]) => c.group === (SECTIONS[activeSection]?.group || 'details')).map(([key, config]) => (
                 <button
                   key={key}
                   onClick={() => setActiveSection(key)}
@@ -2406,6 +2613,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{config.name}</span>
                 </button>
               ))}
+            </div>
             </div>
 
             {/* Form Area */}
@@ -4321,6 +4529,139 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation:
                 )}
               </div>
             )}
+
+            {activeSection.startsWith('cp') && (() => {
+              const cp = getCareerProfile(selectedProject);
+              const sourceTitles = (selectedProject.sources || []).map(x => x.title).filter(Boolean);
+              const grid2 = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 0 : 16 };
+              const grid3 = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: isMobile ? 0 : 16 };
+
+              if (activeSection === 'cpIdentity') {
+                const i = cp.identity, set = (k) => (v) => updateCareer('identity', { [k]: v });
+                return (
+                  <>
+                    <CareerInput label="Project name" helperText={`The product's name, not the company's, e.g. "Beacon"`} value={i.productName} onChange={set('productName')} placeholder={selectedProject.name} />
+                    <label style={careerLabel}>Product type</label>
+                    <div style={careerHelp}>Three short categories, most important first, e.g. B2B SaaS / AI assistant / Social services</div>
+                    <div style={grid3}>
+                      <CareerInput label="Primary" value={i.typePrimary} onChange={set('typePrimary')} placeholder="B2B SaaS" />
+                      <CareerInput label="Secondary" value={i.typeSecondary} onChange={set('typeSecondary')} placeholder="AI assistant" />
+                      <CareerInput label="Tertiary" value={i.typeTertiary} onChange={set('typeTertiary')} placeholder="Social services" />
+                    </div>
+                    <TextAreaField label="One-line definition" helperText="What the product is, in one line a stranger understands" value={i.definition} onChange={set('definition')} rows={2} />
+                    <div style={grid2}>
+                      <CareerInput label="Company" helperText="Employer, matching the role record" value={i.company} onChange={set('company')} />
+                      <CareerInput label="Your actual title" helperText="Exactly the role's title" value={i.title} onChange={set('title')} />
+                      <CareerInput label="Start" helperText='Project start, e.g. "Aug 2024"' value={i.start} onChange={set('start')} placeholder="Aug 2024" />
+                      <CareerInput label="End" helperText='Project end, e.g. "Aug 2025"' value={i.end} onChange={set('end')} placeholder="Aug 2025" />
+                    </div>
+                  </>
+                );
+              }
+
+              if (activeSection === 'cpContext') {
+                const c = cp.context, set = (k) => (v) => updateCareer('context', { [k]: v });
+                return (
+                  <>
+                    <TextAreaField label="The problem, in one sentence" helperText="Who struggles with what, and why; one sentence only" value={c.problem} onChange={set('problem')} rows={2} />
+                    <TextAreaField label="Users" helperText='The roles people hold, e.g. "Retirement Benefits Specialists"; not just departments' value={c.users} onChange={set('users')} rows={2} />
+                    <CareerInput label="Their scale" helperText='One sourced size fact, e.g. "12k clinicians", "350,000+ members", "40 product teams"' value={c.scale} onChange={set('scale')} />
+                    <TextAreaField label="The stakes" helperText="Why errors were expensive: the money, time or risk of doing nothing" value={c.stakes} onChange={set('stakes')} />
+                  </>
+                );
+              }
+
+              if (activeSection === 'cpOwnership') {
+                const o = cp.ownership, set = (k) => (v) => updateCareer('ownership', { [k]: v });
+                return (
+                  <>
+                    <TextAreaField label="What you personally owned, definition → shipped" helperText="Your part from start to finish, in ownership verbs (led, owned, defined, shipped, built)" value={o.owned} onChange={set('owned')} rows={4} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 13, fontWeight: 700, color: '#1e293b', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!o.builtFromZero} onChange={e => set('builtFromZero')(e.target.checked)} style={{ width: 16, height: 16 }} />
+                      Built from zero
+                      <span style={{ fontWeight: 400, fontStyle: 'italic', color: '#64748b', fontSize: 12 }}>Tick only if nothing existed before you</span>
+                    </label>
+                    <CareerInput label="Team size" helperText='A number from your records, never an estimate, e.g. "6"' value={o.teamSize} onChange={set('teamSize')} />
+                    <ArrayEditor label="Functions you worked with" helperText="e.g. Engineering, PM, Clinical ops" items={toList(o.functions)} onChange={set('functions')} placeholder="Add a function..." />
+                    <TextAreaField label="What you could decide without asking anyone" helperText="Your decision rights" value={o.decisionRights} onChange={set('decisionRights')} />
+                    <TextAreaField label="A hard decision you owned" helperText="The call, the trade-off, and what happened" value={o.hardDecision} onChange={set('hardDecision')} rows={4} />
+                  </>
+                );
+              }
+
+              if (activeSection === 'cpWork') {
+                return (
+                  <>
+                    <div style={{ ...careerHelp, marginBottom: 16 }}>Each is a list, one item per entry.</div>
+                    {CAREER_WORK_FIELDS.map(([k, label, help]) => (
+                      <ArrayEditor key={k} label={label} helperText={help} items={toList(cp.work[k])} onChange={v => updateCareer('work', { [k]: v })} placeholder="Add an entry..." />
+                    ))}
+                  </>
+                );
+              }
+
+              if (activeSection === 'cpBusinessImpact' || activeSection === 'cpDesignImpact') {
+                const part = activeSection === 'cpBusinessImpact' ? 'businessImpact' : 'designImpact';
+                return (
+                  <ImpactList
+                    key={part}
+                    items={cp[part]}
+                    areas={IMPACT_AREAS[part]}
+                    sources={sourceTitles}
+                    onChange={v => updateCareer(part, v)}
+                    emptyHint={`No numbers yet. Add one for ${IMPACT_AREAS[part].join(', ')}.`}
+                  />
+                );
+              }
+
+              if (activeSection === 'cpEvidence') {
+                const rows = [
+                  ...cp.businessImpact.map(n => ({ n, part: 'businessImpact', label: 'Business' })),
+                  ...cp.designImpact.map(n => ({ n, part: 'designImpact', label: 'Design & System' })),
+                ];
+                const set = (part, id, patch) => updateCareer(part, cp[part].map(x => (x.id === id ? { ...x, ...patch } : x)));
+                if (!rows.length) {
+                  return (
+                    <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                      No numbers yet. Add them in Business Impact or Design & System Impact, then record how each one can be checked here.
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <datalist id="evidence-sources">{sourceTitles.map(t => <option key={t} value={t} />)}</datalist>
+                    <div style={{ ...careerHelp, marginBottom: 16 }}>Every number, with its Status, Source doc and how someone could check it.</div>
+                    {rows.map(({ n, part, label }) => (
+                      <div key={n.id} style={{ padding: 14, background: 'white', border: '1px solid #e2e8f0', borderRadius: 8, marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: n.claim ? '#0f172a' : '#94a3b8' }}>{n.claim || 'Untitled claim'}</span>
+                          <span style={{ fontSize: 10, padding: '2px 8px', background: '#eef2ff', borderRadius: 10, color: '#4338ca', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}>{label}{n.area ? ` · ${n.area}` : ''}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                          <select value={n.status || ''} onChange={e => set(part, n.id, { status: e.target.value })} style={careerInput}>
+                            <option value="">Status…</option>
+                            {IMPACT_STATUSES.map(st => <option key={st} value={st}>{st} — {IMPACT_STATUS_HELP[st]}</option>)}
+                          </select>
+                          <input list="evidence-sources" value={n.sourceDoc || ''} onChange={e => set(part, n.id, { sourceDoc: e.target.value })} placeholder="Source doc" style={careerInput} />
+                        </div>
+                        <input value={n.verificationPath || ''} onChange={e => set(part, n.id, { verificationPath: e.target.value })} placeholder="Verification path: the dashboard, report or person who can confirm" style={{ ...careerInput, marginTop: 8 }} />
+                      </div>
+                    ))}
+                  </>
+                );
+              }
+
+              if (activeSection === 'cpResume') {
+                return (
+                  <>
+                    {CAREER_RESUME_FIELDS.map(([k, label, help]) => (
+                      <TextAreaField key={k} label={label} helperText={help} value={cp.resume[k]} onChange={v => updateCareer('resume', { [k]: v })} />
+                    ))}
+                  </>
+                );
+              }
+              return null;
+            })()}
             </div>{/* end Form Area */}
           </div>{/* end Section nav + Form Area split */}
         </div>
